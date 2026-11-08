@@ -51,6 +51,7 @@ int main(int argc, char** argv)
            num_steps, ElapsedTime(end_t - start_t));
     printf("Pi is %0.10f\n", Pi1);
 
+/*
 
     // calculate in parallel with Monte Carlo
     start_t = ReadTSC();
@@ -59,6 +60,8 @@ int main(int argc, char** argv)
     printf("Time to calculate Pi in // with %"PRIu32" guesses is: %g\n",
            num_steps, ElapsedTime(end_t - start_t));
     printf("Pi is %0.10f\n", Pi2);
+
+*/
 
     
     return 0;
@@ -87,8 +90,17 @@ double calcPi_Serial(int num_steps)
 double calcPi_P1(int num_steps)
 {
     double pi = 0.0;
+    double step = 1.0 /num_steps;
 
-    return pi;
+    #pragma omp parallel for 
+    for (int i = 0; i < num_steps; i++){
+        double x = (i + 0.5) * step;
+   
+        #pragma omp atomic
+        pi += 4.0 / (1.0 + x * x);
+    }
+
+    return pi * step;
 }
 
 double calcPi_P2(int num_steps)

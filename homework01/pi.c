@@ -51,7 +51,6 @@ int main(int argc, char** argv)
            num_steps, ElapsedTime(end_t - start_t));
     printf("Pi is %0.10f\n", Pi1);
 
-/*
 
     // calculate in parallel with Monte Carlo
     start_t = ReadTSC();
@@ -60,8 +59,6 @@ int main(int argc, char** argv)
     printf("Time to calculate Pi in // with %"PRIu32" guesses is: %g\n",
            num_steps, ElapsedTime(end_t - start_t));
     printf("Pi is %0.10f\n", Pi2);
-
-*/
 
     
     return 0;
@@ -106,6 +103,19 @@ double calcPi_P1(int num_steps)
 double calcPi_P2(int num_steps)
 {
     double pi = 0.0;
+    double in_circle = 0.0;
 
+    for (int i = 0; i < num_steps; i++){
+        // set an x and y within a 1x1 grid
+        double x = rand() / RAND_MAX; // x: 0 - 1
+        double y = rand() / RAND_MAX; // (x,y): (0,0) - (1,1)
+
+        // sqrt(x^2 + y^2) distance from origin
+        if (x*x + y*y <= 1.0){
+            in_circle++;
+        }
+    }
+    
+    pi = 4.0 * in_circle / num_steps;
     return pi;
 }

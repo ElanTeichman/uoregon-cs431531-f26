@@ -1,0 +1,19 @@
+#!/bin/bash
+#SBATCH --account=cis431_531
+#SBATCH --job-name=spmv_gpu   ### Job Name
+#SBATCH --output=spmv_%j.out  ### File in which to store job output
+#SBATCH --error=spmv_%j.err   ### File in which to store job error messages
+#SBATCH --partition=gpu       ### Quality of Service (like a queue in PBS)
+#SBATCH --time=1-00:00:00     ### Wall clock time limit in Days-HH:MM:SS
+#SBATCH --nodes=1             ### Node count required for the job
+#SBATCH --ntasks-per-node=1   ### Nuber of tasks to be launched per Node
+#SBATCH --gres=gpu:1          ### General REServation of gpu:number of gpus
+#SBATCH --cpus-per-task=28     ### Number of threads per task (OMP threads)
+
+module load cuda/10.2
+module load gcc/7.3
+
+export OMP_PROC_BIND=true
+export OMP_NUM_THREADS=28
+
+./spmv cant/cant.mtx cant/b.mtx ./test.mtx 

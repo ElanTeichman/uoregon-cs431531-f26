@@ -1,0 +1,53 @@
+Homework 4
+Due: Nov 23, 11:59 PM
+----------
+IMPORTANT NOTE:
+There is something funky going on with the CUDA installation on Talapas.
+To get this code correctly compiled, please set the cuda version to cuda/10.2 (i.e., module load cuda/10.2).
+However, you may notice that the code is being compiled with nvcc from cuda/11.2.0.
+This is because 11.2.0 is needed for A100 (compute capability 8.0) but the headers are not functioning correctly, so I'm using headers from 10.2.
+Anyway, just use the provided Makefile after setting cuda version to cuda/10.2, and everything should compile fine.
+I have also provided a .srun file to submit your GPU jobs.
+----------
+
+
+Implement the SpMV kernel on a GPU.
+This time, implement both CSR and ELLPACK/ITPACK (ELL) format as described 
+in the document (Section 3.2):
+https://www.nvidia.com/docs/IO/77944/sc09-spmv-throughput.pdf
+
+The function that needs implemented are:
+1) convert_csr_to_ell
+   This functions runs on the CPU and creates the appropriate ELL format on the
+     CPU.
+2) allocate_csr_gpu
+   Allocate CSR data structure on the GPU and copy the necessary data from the 
+     CPU to the GPU for execution.
+3) spmv_kernel
+   CSR SpMV kernel on the GPU - this function is called from the spmv_gpu 
+     function which has already been implemented for you.
+4) allocate_ell_gpu
+   Allocate ELL data structure on the GPU and copy the necessary data from the 
+     CPU to the GPU for execution
+5) spmv_kernel_ell
+   ELL SpMV kernel on the GPU - this function is called from the spmv_gpu_ell 
+     function which has already been implemented for you.
+
+Include a report that describes your findings. 
+Try different # of threads and thread block sizes, as well as different implementations for the kernels (if you tried).
+
+
+Things to note:
+---------------
+1) I have provided a skeleton code for you to use, as well as the function
+   prototypes for functions you may require to implement SpMV on GPU.
+   Read it carefully first.
+   Search "COMPLETE THIS FUNCTION" to see what needs to be implemented.
+
+2) GPU kernels and associated functions can be found in spmv.cu.
+
+3) I provide a templated function CopyData - use this to copy data from the CPU
+   to the GPU. If you do not use this, your performance numbers (i.e., GB/s) may
+   be incorrect.
+
+4) Email me with any questions if you are confused about anything.

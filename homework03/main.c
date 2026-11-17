@@ -111,7 +111,7 @@ int main(int argc, char** argv)
     timer[SPMV_COO_TIME] += ElapsedTime(ReadTSC() - t0);
     fprintf(stdout, "done\n");
 
-
+/*
 
     // Calculate CSR SpMV
     double *res_csr = (double*) malloc(sizeof(double) * m);;
@@ -154,14 +154,14 @@ int main(int argc, char** argv)
     timer[SPMV_CSR_SER] += ElapsedTime(ReadTSC() - t0);
     fprintf(stdout, "done\n");
 
-
+*/
 
     // Store the calculated vector in a file, one element per line.
     char resName[MAX_FILENAME];
     strcpy(resName, argv[3]); 
     fprintf(stdout, "Result file name: %s ... ", resName);
     t0 = ReadTSC();
-    store_result(resName, res_csr, m);
+    store_result(resName, res_coo, m);
     // store_result(resName, res_coo, m);
     timer[STORE_TIME] += ElapsedTime(ReadTSC() - t0);
     fprintf(stdout, "file saved\n");
@@ -177,9 +177,11 @@ int main(int argc, char** argv)
     free(csr_vals);
     free(vector_x);
     free(res_coo);
+/*
     free(res_csr);
     free(res_coo_ser);
     free(res_csr_ser);
+*/
     free(row_ind);
     free(col_ind);
     free(val);
@@ -432,6 +434,24 @@ void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals,
               int m, int n, int nnz, double* vector_x, double *res, 
               omp_lock_t* writelock)
 {
+// res = A * vector_X
+    int i;
+
+    // initialize result vector to zero
+    for (i = 0; i < m; i++){
+        res[i] = 0.0;
+    }
+
+    // sparse matrix vector multiply
+    // for every nnz
+    for (i = 0; i < nnz; i++){
+        unsigned int row = row_ind[i];
+        unsigned int col = col_ind[i];
+         
+        double product = vals[i] * vector_x[col];
+
+        res[row] += product;
+    }
 }
 
 

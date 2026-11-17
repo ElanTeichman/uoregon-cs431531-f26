@@ -349,6 +349,43 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
                         double** csr_vals)
 
 {
+   int i ;
+   //allocate memory for CSR arrays
+   *csr_row_ptr = (unsigned int*)malloc((m + 1) * sizeof(unsigned int));
+   // initialize row_ptrs to zeros
+   for (i = 0; i <= m; i++){
+      (*csr_row_ptr)[i] = 0;
+   }
+   *csr_col_ind = (unsigned int*)malloc(nnz * sizeof(unsigned int));
+   *csr_vals = (double*)malloc(nnz * sizeof(double));
+
+   // Track nonzeros in each row
+   for (i = 0; i < nnz; i++){
+       (*csr_row_ptr)[row_ind[i] + 1]++;
+   }
+
+   // cumulative sum; where each row starts and ends
+   for (i = 0; i < m; i++){
+      (*csr_row_ptr)[i + 1] += (*csr_row_ptr)[i];
+   }
+
+   // temp array for insertions
+   unsigned int* temp = (unsigned int*)malloc(m*sizeof(unsigned int));
+
+   for (i = 0; i < m; i++){
+      temp[i] = (*csr_row_ptr)[i];
+   }
+
+   // Fill csr indices and data
+   for (i = 0; i < nnz; i++){
+      int row = row_ind[i];
+      unsigned int pos = temp[row]++;
+
+      (*csr_col_ind)[pos] = (unsigned int)col_ind[i];
+      (*csr_vals)[pos] = val[i];
+   }
+
+   free(temp);
 }
 
 /* Reads in a vector from file.

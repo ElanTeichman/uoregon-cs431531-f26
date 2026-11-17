@@ -111,7 +111,6 @@ int main(int argc, char** argv)
     timer[SPMV_COO_TIME] += ElapsedTime(ReadTSC() - t0);
     fprintf(stdout, "done\n");
 
-/*
 
     // Calculate CSR SpMV
     double *res_csr = (double*) malloc(sizeof(double) * m);;
@@ -125,7 +124,7 @@ int main(int argc, char** argv)
     timer[SPMV_CSR_TIME] += ElapsedTime(ReadTSC() - t0);
     fprintf(stdout, "done\n");
 
-
+/*
 
 	// Calculate COO SpMV in serial
     double *res_coo_ser = (double*) malloc(sizeof(double) * m);;
@@ -177,8 +176,8 @@ int main(int argc, char** argv)
     free(csr_vals);
     free(vector_x);
     free(res_coo);
-/*
     free(res_csr);
+/*
     free(res_coo_ser);
     free(res_csr_ser);
 */
@@ -355,6 +354,7 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
    //allocate memory for CSR arrays
    *csr_row_ptr = (unsigned int*)malloc((m + 1) * sizeof(unsigned int));
    // initialize row_ptrs to zeros
+   #pragma omp parallel for
    for (i = 0; i <= m; i++){
       (*csr_row_ptr)[i] = 0;
    }
@@ -374,6 +374,7 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
    // temp array for insertions
    unsigned int* temp = (unsigned int*)malloc(m*sizeof(unsigned int));
 
+   #pragma omp parallel for
    for (i = 0; i < m; i++){
       temp[i] = (*csr_row_ptr)[i];
    }
@@ -438,19 +439,23 @@ void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals,
     int i;
 
     // initialize result vector to zero
+    #pragma omp parallel for
     for (i = 0; i < m; i++){
         res[i] = 0.0;
     }
 
     // sparse matrix vector multiply
     // for every nnz
+    #pragma omp parallel for
     for (i = 0; i < nnz; i++){
         unsigned int row = row_ind[i];
         unsigned int col = col_ind[i];
          
         double product = vals[i] * vector_x[col];
 
+        omp_set_lock(&writelock[row]);
         res[row] += product;
+        omp_unset_lock(&writelock[row]);
     }
 }
 
@@ -462,6 +467,16 @@ void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
           double* csr_vals, int m, int n, int nnz, 
           double* vector_x, double *res)
 {
+    #pragma omp parallel for
+    for (int i = 0; i < m; i++) {
+        double sum = 0.0;
+
+        for (unsigned int j = csr_row_ptr[i]; j < csr_row_ptr[i + 1]; j++) {
+            sum += csr_vals[j] * vector_x[csr_col_ind[j]];
+        }
+
+        res[i] = sum;
+    }
 }
 
 

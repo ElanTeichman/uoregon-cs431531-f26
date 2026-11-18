@@ -160,8 +160,10 @@ int main(int argc, char** argv)
     strcpy(resName, argv[3]); 
     fprintf(stdout, "Result file name: %s ... ", resName);
     t0 = ReadTSC();
+    printf("2\n\n");
     store_result(resName, res_coo, m);
     // store_result(resName, res_coo, m);
+    printf("3\n\n");
     timer[STORE_TIME] += ElapsedTime(ReadTSC() - t0);
     fprintf(stdout, "file saved\n");
 
@@ -363,7 +365,7 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
 
    // Track nonzeros in each row
    for (i = 0; i < nnz; i++){
-       (*csr_row_ptr)[row_ind[i] + 1]++;
+       (*csr_row_ptr)[row_ind[i]]++;
    }
 
    // cumulative sum; where each row starts and ends
@@ -381,10 +383,10 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
 
    // Fill csr indices and data
    for (i = 0; i < nnz; i++){
-      int row = row_ind[i];
+      int row = row_ind[i] - 1;
       unsigned int pos = temp[row]++;
 
-      (*csr_col_ind)[pos] = (unsigned int)col_ind[i];
+      (*csr_col_ind)[pos] = (unsigned int)col_ind[i] - 1;
       (*csr_vals)[pos] = val[i];
    }
 
@@ -448,8 +450,8 @@ void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals,
     // for every nnz
     #pragma omp parallel for
     for (i = 0; i < nnz; i++){
-        unsigned int row = row_ind[i];
-        unsigned int col = col_ind[i];
+        unsigned int row = row_ind[i] - 1;
+        unsigned int col = col_ind[i] - 1;
          
         double product = vals[i] * vector_x[col];
 

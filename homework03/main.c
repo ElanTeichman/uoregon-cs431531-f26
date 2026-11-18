@@ -124,7 +124,6 @@ int main(int argc, char** argv)
     timer[SPMV_CSR_TIME] += ElapsedTime(ReadTSC() - t0);
     fprintf(stdout, "done\n");
 
-/*
 
 	// Calculate COO SpMV in serial
     double *res_coo_ser = (double*) malloc(sizeof(double) * m);;
@@ -153,7 +152,6 @@ int main(int argc, char** argv)
     timer[SPMV_CSR_SER] += ElapsedTime(ReadTSC() - t0);
     fprintf(stdout, "done\n");
 
-*/
 
     // Store the calculated vector in a file, one element per line.
     char resName[MAX_FILENAME];
@@ -161,7 +159,7 @@ int main(int argc, char** argv)
     fprintf(stdout, "Result file name: %s ... ", resName);
     t0 = ReadTSC();
     printf("2\n\n");
-    store_result(resName, res_coo, m);
+    store_result(resName, res_csr, m);
     // store_result(resName, res_coo, m);
     printf("3\n\n");
     timer[STORE_TIME] += ElapsedTime(ReadTSC() - t0);
@@ -179,10 +177,8 @@ int main(int argc, char** argv)
     free(vector_x);
     free(res_coo);
     free(res_csr);
-/*
     free(res_coo_ser);
     free(res_csr_ser);
-*/
     free(row_ind);
     free(col_ind);
     free(val);
@@ -365,7 +361,7 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
 
    // Track nonzeros in each row
    for (i = 0; i < nnz; i++){
-       (*csr_row_ptr)[row_ind[i]]++;
+       (*csr_row_ptr)[row_ind[i - 1]]++;
    }
 
    // cumulative sum; where each row starts and ends
@@ -383,10 +379,12 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
 
    // Fill csr indices and data
    for (i = 0; i < nnz; i++){
-      int row = row_ind[i] - 1;
+      unsigned int row = row_ind[i] - 1;
+      unsigned int col = col_ind[i] - 1 ;
+
       unsigned int pos = temp[row]++;
 
-      (*csr_col_ind)[pos] = (unsigned int)col_ind[i] - 1;
+      (*csr_col_ind)[pos] = col;
       (*csr_vals)[pos] = val[i];
    }
 
@@ -451,7 +449,7 @@ void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals,
     #pragma omp parallel for
     for (i = 0; i < nnz; i++){
         unsigned int row = row_ind[i] - 1;
-        unsigned int col = col_ind[i] - 1;
+        unsigned int col = col_ind[i] - 1 ;
          
         double product = vals[i] * vector_x[col];
 
@@ -487,6 +485,24 @@ void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
 void spmv_coo_ser(unsigned int* row_ind, unsigned int* col_ind, double* vals, 
                   int m, int n, int nnz, double* vector_x, double *res)
 {
+     // res = A * vector_X
+     int i;
+ 
+     // initialize result vector to zero
+     for (i = 0; i < m; i++){
+         res[i] = 0.0;
+     }
+ 
+     // sparse matrix vector multiply
+     // for every nnz
+     for (i = 0; i < nnz; i++){
+         unsigned int row = row_ind[i] - 1;
+         unsigned int col = col_ind[i] - 1;
+ 
+         double product = vals[i] * vector_x[col];
+ 
+         res[row] += product;
+     }
 }
 
 
@@ -497,6 +513,16 @@ void spmv_ser(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
               double* csr_vals, int m, int n, int nnz, 
               double* vector_x, double *res)
 {
+     for (int i = 0; i < m; i++) {
+         double sum = 0.0;
+ 
+         for (unsigned int j = csr_row_ptr[i]; j < csr_row_ptr[i + 1]; j++) {
+             sum += csr_vals[j] * vector_x[csr_col_ind[j]];
+         }
+ 
+         res[i] = sum;
+     }
+
 }
 
 

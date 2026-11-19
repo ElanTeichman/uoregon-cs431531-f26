@@ -5,6 +5,8 @@
 #include <omp.h>
 #include "main.h"
 
+void prefix_sum_p2(int* src, int* prefix, int n);
+
 #define MAX_FILENAME 256
 #define MAX_NUM_LENGTH 100
 #define MAX_ITER 100
@@ -327,6 +329,60 @@ void read_info(char* fileName, int* is_sym)
     fclose(fp);
 }
 
+/* This function is the students implementation of prefix_sum_p2 from the
+   previous homework assignment. 
+*/
+
+void prefix_sum_p2(int* src, int* prefix, int n){
+    int next_power = 1;
+
+    while (next_power < n) next_power *= 2;
+    int* tree = malloc(next_power * sizeof(int));
+
+    #pragma omp parallel for
+    for (int i = 0; i < next_power; i++){
+         if (i < n){
+             tree[i] = src[i];
+         } else {
+             tree[i] = 0;
+         }
+     }
+     // like the last, we will double our stepper at each iteration
+     // unlike our last implementation we need not iterate over every node
+     // in our first pass. In this way, we divide the list in half each pass.
+     for (int stepper = 2; stepper <= next_power; stepper*=2){
+         # pragma omp parallel for
+         for (int i = stepper - 1; i < next_power; i += stepper){
+             // Add left and right subtree (2 children of internal node)
+             tree[i] += tree[i - stepper / 2];
+         }
+     }
+ 
+     // Now tree[next_power-1] contains the sum of all elements
+     tree[next_power - 1] = 0;
+ 
+     // Now we reverse our traversal to add the partials
+     for (int stepper = next_power; stepper >= 2; stepper /= 2){
+ 
+         # pragma omp parallel for
+         for (int i = stepper - 1; i < next_power; i += stepper){
+             // Save the left subtree
+             int temp = tree[i - stepper / 2];
+             // The left child inherits the parent's prefix sum (starts as 0)
+             tree[i - stepper / 2] = tree[i];
+ 
+             // The right child inherits the parent's prefix plus
+             // the left subtree's partial sum
+             tree[i] += temp;
+         }
+     }
+     # pragma omp parallel for
+     for (int i = 0; i < n; i++){
+         prefix[i] = tree[i] + src[i];
+     }
+     free(tree);
+}
+
 /* This function converts a sparse matrix stored in COO format to CSR format.
    input parameters:
        int*	row_ind		list or row indices (per non-zero)
@@ -348,6 +404,8 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
                         double** csr_vals)
 
 {
+   (void)n;
+
    int i ;
    //allocate memory for CSR arrays
    *csr_row_ptr = (unsigned int*)malloc((m + 1) * sizeof(unsigned int));
@@ -359,18 +417,37 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
    *csr_col_ind = (unsigned int*)malloc(nnz * sizeof(unsigned int));
    *csr_vals = (double*)malloc(nnz * sizeof(double));
 
-   // Track nonzeros in each row
+   // prefix_sum_p2 expects ints
+   int* row_counts = (int*)malloc(m * sizeof(int));
+   for (i = 0; i <= m; i++){
+       row_counts[i] = 0;
+   }
+   int* row_prefix = (int*)malloc(m * sizeof(int));
+
+   #pragma omp parallel for
    for (i = 0; i < nnz; i++){
-       (*csr_row_ptr)[row_ind[i - 1]]++;
+       int row = row_ind[i] - 1;
+       assert(row >= 0 && row < m);
+
+       #pragma omp atomic  
+       row_counts[row]++;
    }
 
-   // cumulative sum; where each row starts and ends
+   // Inclusive scan of the row counts
+   prefix_sum_p2(row_counts, row_prefix, m);
+
+   (*csr_row_ptr)[0] = 0;
+   #pragma omp parallel for
    for (i = 0; i < m; i++){
-      (*csr_row_ptr)[i + 1] += (*csr_row_ptr)[i];
+       (*csr_row_ptr)[i + 1] = (unsigned int)row_prefix[i];
    }
 
-   // temp array for insertions
-   unsigned int* temp = (unsigned int*)malloc(m*sizeof(unsigned int));
+   assert((*csr_row_ptr)[m] == (unsigned int)nnz);
+
+   free(row_counts);
+   free(row_prefix);
+
+   unsigned int* temp = (unsigned int*)malloc(m* sizeof(unsigned int));
 
    #pragma omp parallel for
    for (i = 0; i < m; i++){
@@ -379,8 +456,8 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
 
    // Fill csr indices and data
    for (i = 0; i < nnz; i++){
-      unsigned int row = row_ind[i] - 1;
-      unsigned int col = col_ind[i] - 1 ;
+      unsigned int row = (unsigned int)row_ind[i] - 1;
+      unsigned int col = (unsigned int)col_ind[i] - 1 ;
 
       unsigned int pos = temp[row]++;
 
